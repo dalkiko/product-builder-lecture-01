@@ -58,9 +58,27 @@
       </header>
 
       <div class="user-bar card compact">
-        <span><strong id="currentUserName">-</strong>님으로 로그인 중</span>
-        <button id="logoutBtn" type="button" class="ghost-btn">로그아웃</button>
+        <div class="user-identity">
+          <img id="currentUserAvatar" class="avatar" alt="내 프로필 이미지" hidden />
+          <div id="avatarFallback" class="avatar-fallback">🙂</div>
+          <span><strong id="currentUserName">-</strong>님으로 로그인 중</span>
+        </div>
+        <div class="user-actions">
+          <button id="settingsBtn" type="button" class="secondary-btn">설정</button>
+          <button id="logoutBtn" type="button" class="ghost-btn">로그아웃</button>
+        </div>
       </div>
+
+      <section id="profileSettings" class="card" hidden>
+        <h2>프로필 설정</h2>
+        <form id="profileForm" autocomplete="off">
+          <label for="profileImageInput">프로필 이미지</label>
+          <input id="profileImageInput" type="file" accept="image/*" required />
+          <img id="profilePreview" class="profile-preview" alt="프로필 이미지 미리보기" hidden />
+          <button type="submit" class="primary-btn">프로필 이미지 저장</button>
+        </form>
+        <p id="profileMessage" class="notice" aria-live="polite"></p>
+      </section>
 
       <nav class="category-tabs" aria-label="카테고리 탭">
         <button type="button" class="tab-btn active" data-target="upload">사진 올리기</button>

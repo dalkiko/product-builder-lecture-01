@@ -148,6 +148,39 @@ body {
   gap: 12px;
 }
 
+.user-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar,
+.avatar-fallback {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+}
+
+.avatar {
+  object-fit: cover;
+  border: 1px solid #dbcab5;
+}
+
+.avatar-fallback {
+  border: 1px solid #dbcab5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff3de;
+}
+
+.secondary-btn,
 .ghost-btn {
   border: 1px solid #d9c8ba;
   background: #fff;
@@ -158,10 +191,20 @@ body {
   cursor: pointer;
 }
 
+.secondary-btn:hover,
 .ghost-btn:hover {
   border-color: #c16f57;
   color: #a34830;
   background: #fff3ef;
+}
+
+.profile-preview {
+  width: 92px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 999px;
+  border: 1px solid #d8ccb9;
+  background: #fff;
 }
 
 .category-tabs {
@@ -290,6 +333,20 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.post-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.post-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid #dbcab5;
 }
 
 .author {

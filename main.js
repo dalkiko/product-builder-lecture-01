@@ -11,8 +11,17 @@ const signupPanel = document.getElementById("auth-signup");
 const loginPanel = document.getElementById("auth-login");
 const signupForm = document.getElementById("signupForm");
 const loginForm = document.getElementById("loginForm");
+
+const settingsBtn = document.getElementById("settingsBtn");
+const profileSettings = document.getElementById("profileSettings");
+const profileForm = document.getElementById("profileForm");
+const profileImageInput = document.getElementById("profileImageInput");
+const profilePreview = document.getElementById("profilePreview");
+const profileMessage = document.getElementById("profileMessage");
 const logoutBtn = document.getElementById("logoutBtn");
 const currentUserNameEl = document.getElementById("currentUserName");
+const currentUserAvatarEl = document.getElementById("currentUserAvatar");
+const avatarFallbackEl = document.getElementById("avatarFallback");
 
 const postForm = document.getElementById("postForm");
 const feedEl = document.getElementById("feed");
@@ -35,6 +44,10 @@ function initialize() {
 
   signupForm.addEventListener("submit", handleSignup);
   loginForm.addEventListener("submit", handleLogin);
+
+  settingsBtn.addEventListener("click", toggleProfileSettings);
+  profileForm.addEventListener("submit", handleProfileSave);
+  profileImageInput.addEventListener("change", handleProfileImageChange);
   logoutBtn.addEventListener("click", handleLogout);
 
   photoInput.addEventListener("change", async (event) => {
@@ -86,6 +99,7 @@ function initialize() {
   });
 
   if (currentUser && users.some((user) => user.nickname === currentUser.nickname)) {
+    hydrateCurrentUserFromUsers();
     showApp();
   } else {
     currentUser = null;
@@ -167,7 +181,7 @@ function handleSignup(event) {
     return;
   }
 
-  users.push({ nickname, password });
+  users.push({ nickname, password, profileImage: "" });
   saveUsers(users);
 
   signupForm.reset();
@@ -194,10 +208,14 @@ function handleLogin(event) {
     return;
   }
 
-  currentUser = { nickname: account.nickname };
+  currentUser = {
+    nickname: account.nickname,
+    profileImage: account.profileImage || "",
+  };
   saveSession(currentUser);
   loginForm.reset();
   showApp();
+  renderFeed();
 }
 
 async function handlePostSubmit(event) {
@@ -241,7 +259,68 @@ async function handlePostSubmit(event) {
 function handleLogout() {
   currentUser = null;
   clearSession();
+  profileSettings.hidden = true;
+  clearProfileMessage();
   showAuth();
+  renderFeed();
+}
+
+function toggleProfileSettings() {
+  const next = !profileSettings.hidden;
+  profileSettings.hidden = next;
+  settingsBtn.textContent = next ? "설정" : "설정 닫기";
+  clearProfileMessage();
+
+  if (!next && currentUser?.profileImage) {
+    profilePreview.src = currentUser.profileImage;
+    profilePreview.hidden = false;
+  }
+}
+
+async function handleProfileImageChange(event) {
+  const file = event.target.files?.[0];
+  if (!file) {
+    profilePreview.hidden = true;
+    profilePreview.src = "";
+    return;
+  }
+
+  const imageData = await fileToDataUrl(file);
+  profilePreview.src = imageData;
+  profilePreview.hidden = false;
+}
+
+async function handleProfileSave(event) {
+  event.preventDefault();
+  if (!currentUser) {
+    return;
+  }
+
+  const file = profileImageInput.files?.[0];
+  if (!file) {
+    setProfileMessage("이미지를 선택해주세요.", "error");
+    return;
+  }
+
+  const imageData = await fileToDataUrl(file);
+  users = users.map((user) => {
+    if (user.nickname !== currentUser.nickname) {
+      return user;
+    }
+    return { ...user, profileImage: imageData };
+  });
+  saveUsers(users);
+
+  currentUser = { ...currentUser, profileImage: imageData };
+  saveSession(currentUser);
+
+  profilePreview.src = imageData;
+  profilePreview.hidden = false;
+  profileForm.reset();
+
+  applyCurrentUserProfile();
+  renderFeed();
+  setProfileMessage("프로필 이미지가 저장되었습니다.", "success");
 }
 
 function showAuth() {
@@ -257,9 +336,41 @@ function showApp() {
   }
 
   currentUserNameEl.textContent = currentUser.nickname;
+  applyCurrentUserProfile();
   authGate.hidden = true;
   appRoot.hidden = false;
+  profileSettings.hidden = true;
+  settingsBtn.textContent = "설정";
   setAuthMessage("");
+}
+
+function applyCurrentUserProfile() {
+  if (!currentUser?.profileImage) {
+    currentUserAvatarEl.hidden = true;
+    avatarFallbackEl.hidden = false;
+    return;
+  }
+
+  currentUserAvatarEl.src = currentUser.profileImage;
+  currentUserAvatarEl.hidden = false;
+  avatarFallbackEl.hidden = true;
+}
+
+function hydrateCurrentUserFromUsers() {
+  if (!currentUser) {
+    return;
+  }
+
+  const account = users.find((user) => user.nickname === currentUser.nickname);
+  if (!account) {
+    return;
+  }
+
+  currentUser = {
+    nickname: account.nickname,
+    profileImage: account.profileImage || "",
+  };
+  saveSession(currentUser);
 }
 
 function setAuthMessage(message, type = "") {
@@ -268,6 +379,23 @@ function setAuthMessage(message, type = "") {
   if (type) {
     authMessage.classList.add(type);
   }
+}
+
+function setProfileMessage(message, type = "") {
+  profileMessage.textContent = message;
+  profileMessage.classList.remove("error", "success");
+  if (type) {
+    profileMessage.classList.add(type);
+  }
+}
+
+function clearProfileMessage() {
+  setProfileMessage("");
+}
+
+function getUserProfileImage(nickname) {
+  const user = users.find((item) => item.nickname === nickname);
+  return user?.profileImage || "";
 }
 
 function renderFeed() {
@@ -283,13 +411,20 @@ function renderFeed() {
     const likeLabel = post.liked ? "응원 취소" : "응원하기";
     const canDelete = currentUser && post.author === currentUser.nickname;
     const deleteButton = canDelete ? `<button class="delete-btn" data-delete-id="${post.id}">삭제</button>` : "";
+    const profileImage = getUserProfileImage(post.author);
+    const avatar = profileImage
+      ? `<img class="post-avatar" src="${profileImage}" alt="${escapeHtml(post.author)} 프로필" />`
+      : `<div class="post-avatar avatar-fallback">🙂</div>`;
 
     return `
       <article class="post">
         <img src="${post.imageData}" alt="${escapeHtml(post.author)}님의 작품 사진" loading="lazy" />
         <div class="post-body">
           <div class="post-meta">
-            <span class="author">${escapeHtml(post.author)}</span>
+            <div class="post-user">
+              ${avatar}
+              <span class="author">${escapeHtml(post.author)}</span>
+            </div>
             <time class="time" datetime="${post.createdAt}">${formatTime(post.createdAt)}</time>
           </div>
           <p class="caption">${escapeHtml(post.caption)}</p>
@@ -350,7 +485,10 @@ function loadSession() {
     if (!parsed || typeof parsed.nickname !== "string") {
       return null;
     }
-    return { nickname: parsed.nickname };
+    return {
+      nickname: parsed.nickname,
+      profileImage: typeof parsed.profileImage === "string" ? parsed.profileImage : "",
+    };
   } catch {
     return null;
   }
