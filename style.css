@@ -414,6 +414,24 @@ textarea {
   font-size: 0.78rem;
 }
 
+.comment-delete-btn {
+  margin-left: auto;
+  border: 1px solid #e1d2c3;
+  background: #fff;
+  color: #8a7666;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.comment-delete-btn:hover {
+  border-color: #c16f57;
+  color: #a34830;
+  background: #fff3ef;
+}
+
 .comment-text {
   margin: 2px 0 0;
   line-height: 1.45;

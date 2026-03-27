@@ -138,6 +138,17 @@ function bindUiEvents() {
       return;
     }
 
+    const commentDeleteButton = event.target.closest("[data-comment-delete-post-id]");
+    if (commentDeleteButton) {
+      const postId = commentDeleteButton.dataset.commentDeletePostId;
+      const commentId = commentDeleteButton.dataset.commentDeleteId;
+      if (!postId || !commentId) {
+        return;
+      }
+      await deleteComment(postId, commentId);
+      return;
+    }
+
     const deleteButton = event.target.closest("[data-delete-id]");
     if (!deleteButton) {
       return;
@@ -357,6 +368,24 @@ async function addComment(postId, text) {
   });
 }
 
+async function deleteComment(postId, commentId) {
+  const target = posts.find((item) => item.id === postId);
+  if (!target || !db || !currentUser) {
+    return;
+  }
+
+  const comments = Array.isArray(target.comments) ? target.comments : [];
+  const comment = comments.find((item) => item.id === commentId);
+  if (!comment || comment.authorUid !== currentUser.uid) {
+    return;
+  }
+
+  const nextComments = comments.filter((item) => item.id !== commentId);
+  await updateDoc(doc(db, "posts", postId), {
+    comments: nextComments,
+  });
+}
+
 async function handleLogout() {
   if (!auth) {
     return;
@@ -569,6 +598,10 @@ function renderFeed() {
           const commentAvatar = comment.authorProfileImage
             ? `<img class="comment-avatar" src="${comment.authorProfileImage}" alt="${escapeHtml(comment.authorNickname)} 프로필" />`
             : "";
+          const canDeleteComment = currentUser && comment.authorUid === currentUser.uid;
+          const commentDeleteButton = canDeleteComment
+            ? `<button type="button" class="comment-delete-btn" data-comment-delete-post-id="${post.id}" data-comment-delete-id="${comment.id}">삭제</button>`
+            : "";
 
           return `
             <li class="comment-item">
@@ -577,6 +610,7 @@ function renderFeed() {
                 <div class="comment-head">
                   <span class="comment-name">${escapeHtml(comment.authorNickname)}</span>
                   <span class="comment-time">${formatTime(comment.createdAt)}</span>
+                  ${commentDeleteButton}
                 </div>
                 <p class="comment-text">${escapeHtml(comment.text)}</p>
               </div>
