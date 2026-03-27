@@ -40,6 +40,7 @@ initialize();
 function initialize() {
   setupAuthTabs();
   setupAppTabs();
+  syncFromStorage();
 
   signupForm.addEventListener("submit", handleSignup);
   loginForm.addEventListener("submit", handleLogin);
@@ -48,6 +49,8 @@ function initialize() {
   profileForm.addEventListener("submit", handleProfileSave);
   profileImageInput.addEventListener("change", handleProfileImageChange);
   logoutBtn.addEventListener("click", handleLogout);
+
+  window.addEventListener("storage", handleStorageSync);
 
   photoInput.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
@@ -107,6 +110,30 @@ function initialize() {
   }
 
   renderFeed();
+}
+
+function handleStorageSync(event) {
+  if (![STORAGE_KEY, USERS_KEY, SESSION_KEY].includes(event.key)) {
+    return;
+  }
+
+  syncFromStorage();
+  if (currentUser) {
+    hydrateCurrentUserFromUsers();
+    if (!currentUser) {
+      showAuth();
+      renderFeed();
+      return;
+    }
+    applyCurrentUserProfile();
+  }
+
+  renderFeed();
+}
+
+function syncFromStorage() {
+  posts = loadPosts();
+  users = loadUsers();
 }
 
 function setupAuthTabs() {
@@ -191,6 +218,7 @@ function handleSignup(event) {
 
 function handleLogin(event) {
   event.preventDefault();
+  syncFromStorage();
 
   const formData = new FormData(loginForm);
   const nickname = String(formData.get("nickname") || "").trim();
@@ -341,6 +369,7 @@ function showApp() {
     return;
   }
 
+  syncFromStorage();
   currentUserNameEl.textContent = currentUser.nickname;
   applyCurrentUserProfile();
   authGate.hidden = true;
@@ -376,6 +405,8 @@ function hydrateCurrentUserFromUsers() {
 
   const account = users.find((user) => user.nickname === currentUser.nickname);
   if (!account) {
+    currentUser = null;
+    clearSession();
     return;
   }
 
@@ -412,6 +443,7 @@ function getUserProfileImage(nickname) {
 }
 
 function renderFeed() {
+  syncFromStorage();
   postCountEl.textContent = `${posts.length}개`;
 
   if (!posts.length) {
