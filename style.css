@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@700&family=Pretendard:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&display=swap");
 
 :root {
   --bg: #fef8ef;
@@ -23,7 +23,7 @@ body {
   background: radial-gradient(circle at 20% -10%, #fff4db, transparent 40%),
               radial-gradient(circle at 85% 0%, #ffe7ce, transparent 38%),
               var(--bg);
-  font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif;
+  font-family: "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
   position: relative;
   overflow-x: hidden;
 }
@@ -61,7 +61,7 @@ body {
   margin: 0;
   font-size: clamp(2rem, 4vw, 2.8rem);
   letter-spacing: -0.03em;
-  font-family: "Nanum Myeongjo", serif;
+  font-family: "Black Han Sans", "Noto Sans KR", sans-serif;
 }
 
 .site-header p {
