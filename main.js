@@ -1,7 +1,30 @@
-const STORAGE_KEY = "knit_sns_posts_v1";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  addDoc,
+  deleteDoc,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove,
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { FIREBASE_CONFIG } from "./firebase-config.js";
+
 const TAB_KEY = "knit_sns_active_tab_v1";
-const USERS_KEY = "knit_sns_users_v1";
-const SESSION_KEY = "knit_sns_session_v1";
 
 const authGate = document.getElementById("authGate");
 const appRoot = document.getElementById("appRoot");
@@ -31,17 +54,56 @@ const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const uploadPanel = document.getElementById("panel-upload");
 const feedPanel = document.getElementById("panel-feed");
 
-let posts = loadPosts();
-let users = loadUsers();
-let currentUser = loadSession();
+let app = null;
+let auth = null;
+let db = null;
+let currentUser = null;
+let posts = [];
+let unsubscribePosts = null;
 
 initialize();
 
 function initialize() {
   setupAuthTabs();
   setupAppTabs();
-  syncFromStorage();
+  bindUiEvents();
 
+  if (!isFirebaseConfigured()) {
+    setAuthMessage("firebase-config.js에 Firebase 키를 입력해야 서비스가 동작합니다.", "error");
+    return;
+  }
+
+  app = initializeApp(FIREBASE_CONFIG);
+  auth = getAuth(app);
+  db = getFirestore(app);
+
+  onAuthStateChanged(auth, async (authUser) => {
+    if (!authUser) {
+      currentUser = null;
+      stopPostsSubscription();
+      showAuth();
+      renderFeed();
+      return;
+    }
+
+    const profile = await loadUserProfile(authUser.uid);
+    if (!profile) {
+      await signOut(auth);
+      return;
+    }
+
+    currentUser = {
+      uid: authUser.uid,
+      nickname: profile.nickname,
+      profileImage: profile.profileImage || "",
+    };
+
+    showApp();
+    subscribePosts();
+  });
+}
+
+function bindUiEvents() {
   signupForm.addEventListener("submit", handleSignup);
   loginForm.addEventListener("submit", handleLogin);
 
@@ -49,8 +111,6 @@ function initialize() {
   profileForm.addEventListener("submit", handleProfileSave);
   profileImageInput.addEventListener("change", handleProfileImageChange);
   logoutBtn.addEventListener("click", handleLogout);
-
-  window.addEventListener("storage", handleStorageSync);
 
   photoInput.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
@@ -67,73 +127,30 @@ function initialize() {
 
   postForm.addEventListener("submit", handlePostSubmit);
 
-  feedEl.addEventListener("click", (event) => {
+  feedEl.addEventListener("click", async (event) => {
+    if (!db || !currentUser) {
+      return;
+    }
+
     const likeButton = event.target.closest("[data-like-id]");
     if (likeButton) {
-      const id = likeButton.dataset.likeId;
-      const post = posts.find((item) => item.id === id);
-      if (!post) {
-        return;
-      }
-
-      post.liked = !post.liked;
-      post.likes = Math.max(0, post.likes + (post.liked ? 1 : -1));
-
-      savePosts(posts);
-      renderFeed();
+      await toggleLike(likeButton.dataset.likeId);
       return;
     }
 
     const deleteButton = event.target.closest("[data-delete-id]");
-    if (!deleteButton || !currentUser) {
+    if (!deleteButton) {
       return;
     }
 
     const id = deleteButton.dataset.deleteId;
     const target = posts.find((item) => item.id === id);
-    if (!target || target.author !== currentUser.nickname) {
+    if (!target || target.authorUid !== currentUser.uid) {
       return;
     }
 
-    posts = posts.filter((item) => item.id !== id);
-    savePosts(posts);
-    renderFeed();
+    await deleteDoc(doc(db, "posts", id));
   });
-
-  if (currentUser && users.some((user) => user.nickname === currentUser.nickname)) {
-    hydrateCurrentUserFromUsers();
-    showApp();
-  } else {
-    currentUser = null;
-    clearSession();
-    showAuth();
-  }
-
-  renderFeed();
-}
-
-function handleStorageSync(event) {
-  if (![STORAGE_KEY, USERS_KEY, SESSION_KEY].includes(event.key)) {
-    return;
-  }
-
-  syncFromStorage();
-  if (currentUser) {
-    hydrateCurrentUserFromUsers();
-    if (!currentUser) {
-      showAuth();
-      renderFeed();
-      return;
-    }
-    applyCurrentUserProfile();
-  }
-
-  renderFeed();
-}
-
-function syncFromStorage() {
-  posts = loadPosts();
-  users = loadUsers();
 }
 
 function setupAuthTabs() {
@@ -149,8 +166,7 @@ function setupAuthTabs() {
 function setupAppTabs() {
   tabButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const target = button.dataset.target;
-      setAppTab(target);
+      setAppTab(button.dataset.target);
     });
   });
 
@@ -160,7 +176,6 @@ function setupAppTabs() {
 
 function setAuthTab(target) {
   const isLogin = target === "login";
-
   signupPanel.hidden = isLogin;
   loginPanel.hidden = !isLogin;
 
@@ -173,7 +188,6 @@ function setAuthTab(target) {
 
 function setAppTab(target) {
   const isFeed = target === "feed";
-
   uploadPanel.hidden = isFeed;
   feedPanel.hidden = !isFeed;
 
@@ -184,8 +198,11 @@ function setAppTab(target) {
   localStorage.setItem(TAB_KEY, isFeed ? "feed" : "upload");
 }
 
-function handleSignup(event) {
+async function handleSignup(event) {
   event.preventDefault();
+  if (!auth || !db) {
+    return;
+  }
 
   const formData = new FormData(signupForm);
   const nickname = String(formData.get("nickname") || "").trim();
@@ -201,53 +218,51 @@ function handleSignup(event) {
     return;
   }
 
-  const exists = users.some((user) => user.nickname === nickname);
-  if (exists) {
-    setAuthMessage("이미 사용 중인 닉네임입니다.", "error");
-    return;
+  const email = nicknameToEmail(nickname);
+
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    await setDoc(doc(db, "users", credential.user.uid), {
+      nickname,
+      profileImage: "",
+      createdAt: serverTimestamp(),
+    });
+
+    signupForm.reset();
+    setAuthMessage("회원가입이 완료되었습니다.", "success");
+    setAuthTab("login");
+    document.getElementById("loginNickname").value = nickname;
+    await signOut(auth);
+  } catch (error) {
+    if (error.code === "auth/email-already-in-use") {
+      setAuthMessage("이미 사용 중인 닉네임입니다.", "error");
+      return;
+    }
+    setAuthMessage("회원가입에 실패했습니다. 다시 시도해주세요.", "error");
   }
-
-  users.push({ nickname, password, profileImage: "" });
-  saveUsers(users);
-
-  signupForm.reset();
-  setAuthMessage("회원가입 완료! 이제 로그인해주세요.", "success");
-  setAuthTab("login");
-  document.getElementById("loginNickname").value = nickname;
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
-  syncFromStorage();
+  if (!auth) {
+    return;
+  }
 
   const formData = new FormData(loginForm);
   const nickname = String(formData.get("nickname") || "").trim();
   const password = String(formData.get("password") || "").trim();
 
-  const account = users.find((user) => user.nickname === nickname);
-  if (!account) {
-    setAuthMessage("가입되지 않은 닉네임입니다.", "error");
-    return;
+  try {
+    await signInWithEmailAndPassword(auth, nicknameToEmail(nickname), password);
+    loginForm.reset();
+  } catch {
+    setAuthMessage("닉네임 또는 비밀번호가 올바르지 않습니다.", "error");
   }
-
-  if (account.password !== password) {
-    setAuthMessage("비밀번호가 일치하지 않습니다.", "error");
-    return;
-  }
-
-  currentUser = {
-    nickname: account.nickname,
-    profileImage: account.profileImage || "",
-  };
-  saveSession(currentUser);
-  loginForm.reset();
-  showApp();
-  renderFeed();
 }
 
 async function handlePostSubmit(event) {
   event.preventDefault();
-  if (!currentUser) {
+  if (!db || !currentUser) {
     showAuth();
     return;
   }
@@ -269,34 +284,41 @@ async function handlePostSubmit(event) {
 
   const imageData = await fileToDataUrl(file);
 
-  const post = {
-    id: crypto.randomUUID(),
-    author: currentUser.nickname,
+  await addDoc(collection(db, "posts"), {
+    authorUid: currentUser.uid,
+    authorNickname: currentUser.nickname,
+    authorProfileImage: currentUser.profileImage,
     caption,
     imageData,
-    createdAt: new Date().toISOString(),
-    likes: 0,
-    liked: false,
-  };
-
-  posts.unshift(post);
-  savePosts(posts);
-  renderFeed();
+    likedBy: [],
+    createdAt: serverTimestamp(),
+  });
 
   postForm.reset();
   previewEl.hidden = true;
   previewEl.src = "";
-
   setAppTab("feed");
 }
 
-function handleLogout() {
-  currentUser = null;
-  clearSession();
-  profileSettings.hidden = true;
-  clearProfileMessage();
-  showAuth();
-  renderFeed();
+async function toggleLike(postId) {
+  const target = posts.find((item) => item.id === postId);
+  if (!target || !db || !currentUser) {
+    return;
+  }
+
+  const ref = doc(db, "posts", postId);
+  const liked = Array.isArray(target.likedBy) && target.likedBy.includes(currentUser.uid);
+
+  await updateDoc(ref, {
+    likedBy: liked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid),
+  });
+}
+
+async function handleLogout() {
+  if (!auth) {
+    return;
+  }
+  await signOut(auth);
 }
 
 function toggleProfileSettings() {
@@ -326,7 +348,7 @@ async function handleProfileImageChange(event) {
 
 async function handleProfileSave(event) {
   event.preventDefault();
-  if (!currentUser) {
+  if (!db || !currentUser) {
     return;
   }
 
@@ -337,23 +359,18 @@ async function handleProfileSave(event) {
   }
 
   const imageData = await fileToDataUrl(file);
-  users = users.map((user) => {
-    if (user.nickname !== currentUser.nickname) {
-      return user;
-    }
-    return { ...user, profileImage: imageData };
+
+  await updateDoc(doc(db, "users", currentUser.uid), {
+    profileImage: imageData,
   });
-  saveUsers(users);
 
   currentUser = { ...currentUser, profileImage: imageData };
-  saveSession(currentUser);
+  applyCurrentUserProfile();
 
   profilePreview.src = imageData;
   profilePreview.hidden = false;
   profileForm.reset();
 
-  applyCurrentUserProfile();
-  renderFeed();
   setProfileMessage("프로필 이미지가 저장되었습니다.", "success");
 }
 
@@ -369,7 +386,6 @@ function showApp() {
     return;
   }
 
-  syncFromStorage();
   currentUserNameEl.textContent = currentUser.nickname;
   applyCurrentUserProfile();
   authGate.hidden = true;
@@ -398,23 +414,53 @@ function applyCurrentUserProfile() {
   currentUserAvatarEl.hidden = false;
 }
 
-function hydrateCurrentUserFromUsers() {
-  if (!currentUser) {
+async function loadUserProfile(uid) {
+  if (!db) {
+    return null;
+  }
+
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) {
+    return null;
+  }
+
+  return snap.data();
+}
+
+function subscribePosts() {
+  if (!db) {
     return;
   }
 
-  const account = users.find((user) => user.nickname === currentUser.nickname);
-  if (!account) {
-    currentUser = null;
-    clearSession();
+  stopPostsSubscription();
+
+  const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+  unsubscribePosts = onSnapshot(q, (snapshot) => {
+    posts = snapshot.docs.map((item) => {
+      const data = item.data();
+      return {
+        id: item.id,
+        authorUid: data.authorUid || "",
+        authorNickname: data.authorNickname || "",
+        authorProfileImage: data.authorProfileImage || "",
+        caption: data.caption || "",
+        imageData: data.imageData || "",
+        likedBy: Array.isArray(data.likedBy) ? data.likedBy : [],
+        createdAt: data.createdAt || null,
+      };
+    });
+
+    renderFeed();
+  });
+}
+
+function stopPostsSubscription() {
+  if (!unsubscribePosts) {
     return;
   }
-
-  currentUser = {
-    nickname: account.nickname,
-    profileImage: account.profileImage || "",
-  };
-  saveSession(currentUser);
+  unsubscribePosts();
+  unsubscribePosts = null;
+  posts = [];
 }
 
 function setAuthMessage(message, type = "") {
@@ -437,13 +483,7 @@ function clearProfileMessage() {
   setProfileMessage("");
 }
 
-function getUserProfileImage(nickname) {
-  const user = users.find((item) => item.nickname === nickname);
-  return user?.profileImage || "";
-}
-
 function renderFeed() {
-  syncFromStorage();
   postCountEl.textContent = `${posts.length}개`;
 
   if (!posts.length) {
@@ -452,27 +492,30 @@ function renderFeed() {
   }
 
   feedEl.innerHTML = posts.map((post) => {
-    const likeClass = post.liked ? "like-btn liked" : "like-btn";
-    const likeLabel = post.liked ? "응원 취소" : "응원하기";
-    const canDelete = currentUser && post.author === currentUser.nickname;
+    const liked = currentUser && post.likedBy.includes(currentUser.uid);
+    const likeClass = liked ? "like-btn liked" : "like-btn";
+    const likeLabel = liked ? "응원 취소" : "응원하기";
+    const likeCount = post.likedBy.length;
+    const canDelete = currentUser && post.authorUid === currentUser.uid;
     const deleteButton = canDelete ? `<button class="delete-btn" data-delete-id="${post.id}">삭제</button>` : "";
-    const profileImage = getUserProfileImage(post.author);
-    const avatar = profileImage ? `<img class="post-avatar" src="${profileImage}" alt="${escapeHtml(post.author)} 프로필" />` : "";
+    const avatar = post.authorProfileImage
+      ? `<img class="post-avatar" src="${post.authorProfileImage}" alt="${escapeHtml(post.authorNickname)} 프로필" />`
+      : "";
 
     return `
       <article class="post">
-        <img src="${post.imageData}" alt="${escapeHtml(post.author)}님의 작품 사진" loading="lazy" />
+        <img src="${post.imageData}" alt="${escapeHtml(post.authorNickname)}님의 작품 사진" loading="lazy" />
         <div class="post-body">
           <div class="post-meta">
             <div class="post-user">
               ${avatar}
-              <span class="author">${escapeHtml(post.author)}</span>
+              <span class="author">${escapeHtml(post.authorNickname)}</span>
             </div>
-            <time class="time" datetime="${post.createdAt}">${formatTime(post.createdAt)}</time>
+            <time class="time">${formatTime(post.createdAt)}</time>
           </div>
           <p class="caption">${escapeHtml(post.caption)}</p>
           <div class="post-actions">
-            <button class="${likeClass}" data-like-id="${post.id}">🤍 ${likeLabel} ${post.likes}</button>
+            <button class="${likeClass}" data-like-id="${post.id}">🤍 ${likeLabel} ${likeCount}</button>
             ${deleteButton}
           </div>
         </div>
@@ -481,82 +524,18 @@ function renderFeed() {
   }).join("");
 }
 
-function loadPosts() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return [];
+function formatTime(value) {
+  let date = null;
+
+  if (value?.toDate) {
+    date = value.toDate();
+  } else if (typeof value === "string") {
+    date = new Date(value);
+  } else if (value instanceof Date) {
+    date = value;
   }
 
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function savePosts(value) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-}
-
-function loadUsers() {
-  const raw = localStorage.getItem(USERS_KEY);
-  if (!raw) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveUsers(value) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(value));
-}
-
-function loadSession() {
-  const raw = localStorage.getItem(SESSION_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed.nickname !== "string") {
-      return null;
-    }
-    return {
-      nickname: parsed.nickname,
-      profileImage: typeof parsed.profileImage === "string" ? parsed.profileImage : "",
-    };
-  } catch {
-    return null;
-  }
-}
-
-function saveSession(user) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-}
-
-function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("이미지 로드에 실패했습니다."));
-    reader.readAsDataURL(file);
-  });
-}
-
-function formatTime(isoString) {
-  const date = new Date(isoString);
-  if (Number.isNaN(date.getTime())) {
+  if (!date || Number.isNaN(date.getTime())) {
     return "방금";
   }
 
@@ -569,10 +548,40 @@ function formatTime(isoString) {
 }
 
 function escapeHtml(text) {
-  return text
+  return String(text)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("이미지 로드에 실패했습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function isFirebaseConfigured() {
+  const required = [
+    FIREBASE_CONFIG.apiKey,
+    FIREBASE_CONFIG.authDomain,
+    FIREBASE_CONFIG.projectId,
+    FIREBASE_CONFIG.appId,
+  ];
+
+  return required.every((value) => typeof value === "string" && value.trim().length > 0);
+}
+
+function nicknameToEmail(nickname) {
+  const encoded = toBase64Url(unescape(encodeURIComponent(nickname)));
+  return `u_${encoded}@meontte.local`;
+}
+
+function toBase64Url(value) {
+  const base64 = btoa(value);
+  return base64.replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
