@@ -21,7 +21,6 @@ const profileMessage = document.getElementById("profileMessage");
 const logoutBtn = document.getElementById("logoutBtn");
 const currentUserNameEl = document.getElementById("currentUserName");
 const currentUserAvatarEl = document.getElementById("currentUserAvatar");
-const avatarFallbackEl = document.getElementById("avatarFallback");
 
 const postForm = document.getElementById("postForm");
 const feedEl = document.getElementById("feed");
@@ -225,6 +224,13 @@ async function handlePostSubmit(event) {
     return;
   }
 
+  if (!currentUser.profileImage) {
+    profileSettings.hidden = false;
+    settingsBtn.textContent = "설정 닫기";
+    setProfileMessage("게시하려면 먼저 이미지 프로필을 설정해주세요.", "error");
+    return;
+  }
+
   const formData = new FormData(postForm);
   const caption = String(formData.get("caption") || "").trim();
   const file = photoInput.files?.[0];
@@ -342,18 +348,25 @@ function showApp() {
   profileSettings.hidden = true;
   settingsBtn.textContent = "설정";
   setAuthMessage("");
+
+  if (!currentUser.profileImage) {
+    profileSettings.hidden = false;
+    settingsBtn.textContent = "설정 닫기";
+    setProfileMessage("이미지 프로필을 먼저 설정한 뒤 활동해주세요.", "error");
+  } else {
+    clearProfileMessage();
+  }
 }
 
 function applyCurrentUserProfile() {
   if (!currentUser?.profileImage) {
     currentUserAvatarEl.hidden = true;
-    avatarFallbackEl.hidden = false;
+    currentUserAvatarEl.removeAttribute("src");
     return;
   }
 
   currentUserAvatarEl.src = currentUser.profileImage;
   currentUserAvatarEl.hidden = false;
-  avatarFallbackEl.hidden = true;
 }
 
 function hydrateCurrentUserFromUsers() {
@@ -412,9 +425,7 @@ function renderFeed() {
     const canDelete = currentUser && post.author === currentUser.nickname;
     const deleteButton = canDelete ? `<button class="delete-btn" data-delete-id="${post.id}">삭제</button>` : "";
     const profileImage = getUserProfileImage(post.author);
-    const avatar = profileImage
-      ? `<img class="post-avatar" src="${profileImage}" alt="${escapeHtml(post.author)} 프로필" />`
-      : `<div class="post-avatar avatar-fallback">🙂</div>`;
+    const avatar = profileImage ? `<img class="post-avatar" src="${profileImage}" alt="${escapeHtml(post.author)} 프로필" />` : "";
 
     return `
       <article class="post">
