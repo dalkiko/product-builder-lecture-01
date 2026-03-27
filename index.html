@@ -11,39 +11,84 @@
   <div class="bg-shape bg-shape-right"></div>
 
   <main class="layout">
-    <header class="site-header">
-      <h1>먼뜨자랑</h1>
-      <p>내가 만든 편물을 사진으로 자랑하고, 서로 응원하는 커뮤니티</p>
-    </header>
+    <section id="authGate" class="auth-gate card">
+      <header class="site-header">
+        <h1>먼뜨자랑</h1>
+        <p>입장 전에 회원가입 또는 로그인을 진행해주세요.</p>
+      </header>
 
-    <nav class="category-tabs" aria-label="카테고리 탭">
-      <button type="button" class="tab-btn active" data-target="upload">사진 올리기</button>
-      <button type="button" class="tab-btn" data-target="feed">사진 보기</button>
-    </nav>
+      <nav class="auth-tabs" aria-label="인증 탭">
+        <button type="button" class="auth-tab-btn active" data-auth-target="signup">회원가입</button>
+        <button type="button" class="auth-tab-btn" data-auth-target="login">로그인</button>
+      </nav>
 
-    <section id="panel-upload" class="tab-panel card">
-      <h2>새 작품 올리기</h2>
-      <form id="postForm" autocomplete="off">
-        <label for="author">작성자</label>
-        <input id="author" name="author" type="text" maxlength="24" placeholder="닉네임 입력" required />
+      <section id="auth-signup" class="auth-panel">
+        <h2>회원가입</h2>
+        <form id="signupForm" autocomplete="off">
+          <label for="signupNickname">닉네임</label>
+          <input id="signupNickname" name="nickname" type="text" maxlength="24" placeholder="닉네임 입력" required />
 
-        <label for="caption">작품 설명</label>
-        <textarea id="caption" name="caption" maxlength="300" placeholder="실 종류, 난이도, 포인트를 적어보세요." required></textarea>
+          <label for="signupPassword">비밀번호</label>
+          <input id="signupPassword" name="password" type="password" minlength="4" maxlength="40" placeholder="비밀번호 4자 이상" required />
 
-        <label for="photo">작품 사진</label>
-        <input id="photo" name="photo" type="file" accept="image/*" required />
-        <img id="preview" class="preview" alt="이미지 미리보기" hidden />
+          <button type="submit" class="primary-btn">회원가입 완료</button>
+        </form>
+      </section>
 
-        <button type="submit" class="primary-btn">게시하기</button>
-      </form>
+      <section id="auth-login" class="auth-panel" hidden>
+        <h2>로그인</h2>
+        <form id="loginForm" autocomplete="off">
+          <label for="loginNickname">닉네임</label>
+          <input id="loginNickname" name="nickname" type="text" maxlength="24" placeholder="가입한 닉네임" required />
+
+          <label for="loginPassword">비밀번호</label>
+          <input id="loginPassword" name="password" type="password" minlength="4" maxlength="40" placeholder="비밀번호 입력" required />
+
+          <button type="submit" class="primary-btn">로그인</button>
+        </form>
+      </section>
+
+      <p id="authMessage" class="notice" aria-live="polite"></p>
     </section>
 
-    <section id="panel-feed" class="tab-panel feed-section" hidden>
-      <div class="feed-header">
-        <h2>최신 피드</h2>
-        <span id="postCount">0개</span>
+    <section id="appRoot" hidden>
+      <header class="site-header">
+        <h1>먼뜨자랑</h1>
+        <p>내가 만든 편물을 사진으로 자랑하고, 서로 응원하는 커뮤니티</p>
+      </header>
+
+      <div class="user-bar card compact">
+        <span><strong id="currentUserName">-</strong>님으로 로그인 중</span>
+        <button id="logoutBtn" type="button" class="ghost-btn">로그아웃</button>
       </div>
-      <div id="feed" class="feed"></div>
+
+      <nav class="category-tabs" aria-label="카테고리 탭">
+        <button type="button" class="tab-btn active" data-target="upload">사진 올리기</button>
+        <button type="button" class="tab-btn" data-target="feed">사진 보기</button>
+      </nav>
+
+      <section id="panel-upload" class="tab-panel card">
+        <h2>새 작품 올리기</h2>
+        <p class="helper">작성자는 로그인한 닉네임으로 자동 등록됩니다.</p>
+        <form id="postForm" autocomplete="off">
+          <label for="caption">작품 설명</label>
+          <textarea id="caption" name="caption" maxlength="300" placeholder="실 종류, 난이도, 포인트를 적어보세요." required></textarea>
+
+          <label for="photo">작품 사진</label>
+          <input id="photo" name="photo" type="file" accept="image/*" required />
+          <img id="preview" class="preview" alt="이미지 미리보기" hidden />
+
+          <button type="submit" class="primary-btn">게시하기</button>
+        </form>
+      </section>
+
+      <section id="panel-feed" class="tab-panel feed-section" hidden>
+        <div class="feed-header">
+          <h2>최신 피드</h2>
+          <span id="postCount">0개</span>
+        </div>
+        <div id="feed" class="feed"></div>
+      </section>
     </section>
   </main>
 
