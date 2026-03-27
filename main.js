@@ -358,20 +358,30 @@ async function handleProfileSave(event) {
     return;
   }
 
-  const imageData = await fileToDataUrl(file);
+  try {
+    const imageData = await fileToDataUrl(file);
 
-  await updateDoc(doc(db, "users", currentUser.uid), {
-    profileImage: imageData,
-  });
+    await setDoc(
+      doc(db, "users", currentUser.uid),
+      {
+        nickname: currentUser.nickname,
+        profileImage: imageData,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
 
-  currentUser = { ...currentUser, profileImage: imageData };
-  applyCurrentUserProfile();
+    currentUser = { ...currentUser, profileImage: imageData };
+    applyCurrentUserProfile();
 
-  profilePreview.src = imageData;
-  profilePreview.hidden = false;
-  profileForm.reset();
+    profilePreview.src = imageData;
+    profilePreview.hidden = false;
+    profileForm.reset();
 
-  setProfileMessage("프로필 이미지가 저장되었습니다.", "success");
+    setProfileMessage("프로필 이미지가 저장되었습니다.", "success");
+  } catch (error) {
+    setProfileMessage(`프로필 저장 실패: ${error?.code || "unknown"}`, "error");
+  }
 }
 
 function showAuth() {
