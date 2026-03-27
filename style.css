@@ -305,7 +305,7 @@ textarea {
   overflow: hidden;
 }
 
-.post img {
+.post > img {
   width: 100%;
   max-height: 560px;
   object-fit: contain;
