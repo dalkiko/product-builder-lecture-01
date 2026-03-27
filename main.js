@@ -151,6 +151,29 @@ function bindUiEvents() {
 
     await deleteDoc(doc(db, "posts", id));
   });
+
+  feedEl.addEventListener("submit", async (event) => {
+    const form = event.target.closest(".comment-form");
+    if (!form) {
+      return;
+    }
+
+    event.preventDefault();
+    if (!db || !currentUser) {
+      showAuth();
+      return;
+    }
+
+    const postId = form.dataset.commentPostId;
+    const input = form.querySelector('input[name="commentText"]');
+    const text = String(input?.value || "").trim();
+    if (!postId || !text) {
+      return;
+    }
+
+    await addComment(postId, text);
+    form.reset();
+  });
 }
 
 function setupAuthTabs() {
@@ -314,6 +337,26 @@ async function toggleLike(postId) {
   });
 }
 
+async function addComment(postId, text) {
+  const target = posts.find((item) => item.id === postId);
+  if (!target || !db || !currentUser) {
+    return;
+  }
+
+  const comment = {
+    id: crypto.randomUUID ? crypto.randomUUID() : `c_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    authorUid: currentUser.uid,
+    authorNickname: currentUser.nickname,
+    authorProfileImage: currentUser.profileImage || "",
+    text,
+    createdAt: new Date().toISOString(),
+  };
+
+  await updateDoc(doc(db, "posts", postId), {
+    comments: arrayUnion(comment),
+  });
+}
+
 async function handleLogout() {
   if (!auth) {
     return;
@@ -460,6 +503,7 @@ function subscribePosts() {
         caption: data.caption || "",
         imageData: data.imageData || "",
         likedBy: Array.isArray(data.likedBy) ? data.likedBy : [],
+        comments: Array.isArray(data.comments) ? data.comments : [],
         createdAt: data.createdAt || null,
       };
     });
@@ -516,6 +560,31 @@ function renderFeed() {
       ? `<img class="post-avatar" src="${post.authorProfileImage}" alt="${escapeHtml(post.authorNickname)} 프로필" />`
       : "";
 
+    const comments = Array.isArray(post.comments)
+      ? [...post.comments].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      : [];
+
+    const commentsHtml = comments.length
+      ? comments.map((comment) => {
+          const commentAvatar = comment.authorProfileImage
+            ? `<img class="comment-avatar" src="${comment.authorProfileImage}" alt="${escapeHtml(comment.authorNickname)} 프로필" />`
+            : "";
+
+          return `
+            <li class="comment-item">
+              ${commentAvatar}
+              <div class="comment-body">
+                <div class="comment-head">
+                  <span class="comment-name">${escapeHtml(comment.authorNickname)}</span>
+                  <span class="comment-time">${formatTime(comment.createdAt)}</span>
+                </div>
+                <p class="comment-text">${escapeHtml(comment.text)}</p>
+              </div>
+            </li>
+          `;
+        }).join("")
+      : '<li class="comment-empty">첫 댓글을 남겨보세요.</li>';
+
     return `
       <article class="post">
         <img src="${post.imageData}" alt="${escapeHtml(post.authorNickname)}님의 작품 사진" loading="lazy" />
@@ -531,6 +600,13 @@ function renderFeed() {
           <div class="post-actions">
             <button class="${likeClass}" data-like-id="${post.id}">🤍 ${likeLabel} ${likeCount}</button>
             ${deleteButton}
+          </div>
+          <div class="comment-section">
+            <ul class="comment-list">${commentsHtml}</ul>
+            <form class="comment-form" data-comment-post-id="${post.id}">
+              <input type="text" name="commentText" maxlength="160" placeholder="댓글을 입력하세요" required />
+              <button type="submit" class="comment-btn">댓글</button>
+            </form>
           </div>
         </div>
       </article>
