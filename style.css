@@ -237,6 +237,9 @@ textarea {
 
 .post-actions {
   margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .like-btn {
@@ -253,6 +256,22 @@ textarea {
   background: #ffe2e6;
   border-color: #e99ca7;
   color: var(--like);
+}
+
+.delete-btn {
+  border: 1px solid #d9c8ba;
+  background: #fff;
+  color: #77685d;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  border-color: #c16f57;
+  color: #a34830;
+  background: #fff3ef;
 }
 
 .empty {
@@ -278,5 +297,9 @@ textarea {
   .card,
   .post-body {
     padding: 14px;
+  }
+
+  .post-actions {
+    flex-wrap: wrap;
   }
 }

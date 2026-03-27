@@ -63,20 +63,34 @@ postForm.addEventListener("submit", async (event) => {
 });
 
 feedEl.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-like-id]");
-  if (!button) {
+  const likeButton = event.target.closest("[data-like-id]");
+  if (likeButton) {
+    const id = likeButton.dataset.likeId;
+    const post = posts.find((item) => item.id === id);
+    if (!post) {
+      return;
+    }
+
+    post.liked = !post.liked;
+    post.likes = Math.max(0, post.likes + (post.liked ? 1 : -1));
+
+    savePosts(posts);
+    renderFeed();
     return;
   }
 
-  const id = button.dataset.likeId;
-  const post = posts.find((item) => item.id === id);
-  if (!post) {
+  const deleteButton = event.target.closest("[data-delete-id]");
+  if (!deleteButton) {
     return;
   }
 
-  post.liked = !post.liked;
-  post.likes = Math.max(0, post.likes + (post.liked ? 1 : -1));
+  const id = deleteButton.dataset.deleteId;
+  const nextPosts = posts.filter((item) => item.id !== id);
+  if (nextPosts.length === posts.length) {
+    return;
+  }
 
+  posts = nextPosts;
   savePosts(posts);
   renderFeed();
 });
@@ -129,6 +143,7 @@ function renderFeed() {
           <p class="caption">${escapeHtml(post.caption)}</p>
           <div class="post-actions">
             <button class="${likeClass}" data-like-id="${post.id}">🤍 ${likeLabel} ${post.likes}</button>
+            <button class="delete-btn" data-delete-id="${post.id}">삭제</button>
           </div>
         </div>
       </article>
