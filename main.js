@@ -120,7 +120,7 @@ function bindUiEvents() {
       return;
     }
 
-    const imageData = await fileToDataUrl(file);
+    const imageData = await imageFileToDataUrl(file, { maxWidth: 1400, maxHeight: 1400, quality: 0.82 });
     previewEl.src = imageData;
     previewEl.hidden = false;
   });
@@ -282,7 +282,7 @@ async function handlePostSubmit(event) {
     return;
   }
 
-  const imageData = await fileToDataUrl(file);
+  const imageData = await imageFileToDataUrl(file, { maxWidth: 1400, maxHeight: 1400, quality: 0.82 });
 
   await addDoc(collection(db, "posts"), {
     authorUid: currentUser.uid,
@@ -341,7 +341,7 @@ async function handleProfileImageChange(event) {
     return;
   }
 
-  const imageData = await fileToDataUrl(file);
+  const imageData = await imageFileToDataUrl(file, { maxWidth: 420, maxHeight: 420, quality: 0.8 });
   profilePreview.src = imageData;
   profilePreview.hidden = false;
 }
@@ -359,7 +359,7 @@ async function handleProfileSave(event) {
   }
 
   try {
-    const imageData = await fileToDataUrl(file);
+    const imageData = await imageFileToDataUrl(file, { maxWidth: 420, maxHeight: 420, quality: 0.8 });
 
     await setDoc(
       doc(db, "users", currentUser.uid),
@@ -380,6 +380,10 @@ async function handleProfileSave(event) {
 
     setProfileMessage("프로필 이미지가 저장되었습니다.", "success");
   } catch (error) {
+    if (error?.code === "invalid-argument") {
+      setProfileMessage("이미지 용량이 너무 커서 저장할 수 없습니다. 더 작은 이미지를 선택해주세요.", "error");
+      return;
+    }
     setProfileMessage(`프로필 저장 실패: ${error?.code || "unknown"}`, "error");
   }
 }
@@ -574,6 +578,42 @@ function fileToDataUrl(file) {
     reader.readAsDataURL(file);
   });
 }
+
+async function imageFileToDataUrl(file, options = {}) {
+  const {
+    maxWidth = 1280,
+    maxHeight = 1280,
+    quality = 0.82,
+  } = options;
+
+  const rawDataUrl = await fileToDataUrl(file);
+  const image = await dataUrlToImage(rawDataUrl);
+
+  const ratio = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+  const width = Math.max(1, Math.round(image.width * ratio));
+  const height = Math.max(1, Math.round(image.height * ratio));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return rawDataUrl;
+  }
+
+  ctx.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
+function dataUrlToImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("이미지 변환에 실패했습니다."));
+    image.src = dataUrl;
+  });
+}
+
 
 function isFirebaseConfigured() {
   const required = [
