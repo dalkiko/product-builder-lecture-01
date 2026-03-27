@@ -328,6 +328,15 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.post-user .author {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
 }
 
 .post-avatar {
