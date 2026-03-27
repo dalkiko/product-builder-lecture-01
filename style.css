@@ -1,1 +1,245 @@
-/* Add styles here */
+@import url("https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@700&family=Pretendard:wght@400;500;600;700&display=swap");
+
+:root {
+  --bg: #fef8ef;
+  --ink: #2f2a24;
+  --muted: #6d655d;
+  --card: #fffdf9;
+  --accent: #e7774d;
+  --accent-dark: #c95d37;
+  --line: #eadfce;
+  --like: #df4f5a;
+  --shadow: 0 14px 30px rgba(120, 90, 60, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background: radial-gradient(circle at 20% -10%, #fff4db, transparent 40%),
+              radial-gradient(circle at 85% 0%, #ffe7ce, transparent 38%),
+              var(--bg);
+  font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.bg-shape {
+  position: fixed;
+  z-index: -1;
+  border-radius: 999px;
+  filter: blur(3px);
+  opacity: 0.4;
+}
+
+.bg-shape-left {
+  width: 240px;
+  height: 240px;
+  background: #ffd1bf;
+  top: -70px;
+  left: -70px;
+}
+
+.bg-shape-right {
+  width: 280px;
+  height: 280px;
+  background: #ffe48f;
+  bottom: -80px;
+  right: -80px;
+}
+
+.layout {
+  width: min(980px, 92vw);
+  margin: 36px auto 50px;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  letter-spacing: -0.03em;
+  font-family: "Nanum Myeongjo", serif;
+}
+
+.site-header p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.card {
+  margin-top: 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+.composer h2,
+.feed-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+form {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+}
+
+input[type="text"],
+textarea,
+input[type="file"] {
+  width: 100%;
+  border: 1px solid #d8ccb9;
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: #fffcf8;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.preview {
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+}
+
+.primary-btn {
+  margin-top: 4px;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), #e5943f);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.primary-btn:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, var(--accent-dark), #cb7f34);
+}
+
+.feed-section {
+  margin-top: 26px;
+}
+
+.feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#postCount {
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.feed {
+  margin-top: 14px;
+  display: grid;
+  gap: 16px;
+}
+
+.post {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.post img {
+  width: 100%;
+  max-height: 460px;
+  object-fit: cover;
+  display: block;
+}
+
+.post-body {
+  padding: 14px 16px 16px;
+}
+
+.post-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.author {
+  font-weight: 700;
+}
+
+.time {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.caption {
+  margin: 10px 0 0;
+  line-height: 1.58;
+}
+
+.post-actions {
+  margin-top: 14px;
+}
+
+.like-btn {
+  border: 1px solid #f2b6bc;
+  background: #fff4f4;
+  color: #964550;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.like-btn.liked {
+  background: #ffe2e6;
+  border-color: #e99ca7;
+  color: var(--like);
+}
+
+.empty {
+  margin: 8px 0;
+  color: var(--muted);
+  border: 1px dashed #ddcfbc;
+  border-radius: 14px;
+  padding: 22px;
+  background: #fffaf2;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .layout {
+    width: min(720px, 94vw);
+    margin-top: 20px;
+  }
+
+  .card,
+  .post-body {
+    padding: 14px;
+  }
+}

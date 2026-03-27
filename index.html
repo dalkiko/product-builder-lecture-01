@@ -1,14 +1,47 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+  <title>뜨개자랑 - Knitting SNS</title>
+  <link href="/style.css" rel="stylesheet">
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
+  <div class="bg-shape bg-shape-left"></div>
+  <div class="bg-shape bg-shape-right"></div>
+
+  <main class="layout">
+    <header class="site-header">
+      <h1>뜨개자랑</h1>
+      <p>내가 만든 편물을 사진으로 자랑하고, 서로 응원하는 커뮤니티</p>
+    </header>
+
+    <section class="composer card">
+      <h2>새 작품 올리기</h2>
+      <form id="postForm" autocomplete="off">
+        <label for="author">작성자</label>
+        <input id="author" name="author" type="text" maxlength="24" placeholder="닉네임 입력" required />
+
+        <label for="caption">작품 설명</label>
+        <textarea id="caption" name="caption" maxlength="300" placeholder="실 종류, 난이도, 포인트를 적어보세요." required></textarea>
+
+        <label for="photo">작품 사진</label>
+        <input id="photo" name="photo" type="file" accept="image/*" required />
+        <img id="preview" class="preview" alt="이미지 미리보기" hidden />
+
+        <button type="submit" class="primary-btn">게시하기</button>
+      </form>
+    </section>
+
+    <section class="feed-section">
+      <div class="feed-header">
+        <h2>최신 피드</h2>
+        <span id="postCount">0개</span>
+      </div>
+      <div id="feed" class="feed"></div>
+    </section>
+  </main>
+
   <script defer type="text/javascript" src="/main.js"></script>
 </body>
 </html>
