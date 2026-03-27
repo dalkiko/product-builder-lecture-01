@@ -16,7 +16,12 @@
       <p>내가 만든 편물을 사진으로 자랑하고, 서로 응원하는 커뮤니티</p>
     </header>
 
-    <section class="composer card">
+    <nav class="category-tabs" aria-label="카테고리 탭">
+      <button type="button" class="tab-btn active" data-target="upload">사진 올리기</button>
+      <button type="button" class="tab-btn" data-target="feed">사진 보기</button>
+    </nav>
+
+    <section id="panel-upload" class="tab-panel card">
       <h2>새 작품 올리기</h2>
       <form id="postForm" autocomplete="off">
         <label for="author">작성자</label>
@@ -33,7 +38,7 @@
       </form>
     </section>
 
-    <section class="feed-section">
+    <section id="panel-feed" class="tab-panel feed-section" hidden>
       <div class="feed-header">
         <h2>최신 피드</h2>
         <span id="postCount">0개</span>

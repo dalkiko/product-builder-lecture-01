@@ -1,13 +1,18 @@
 const STORAGE_KEY = "knit_sns_posts_v1";
+const TAB_KEY = "knit_sns_active_tab_v1";
 
 const postForm = document.getElementById("postForm");
 const feedEl = document.getElementById("feed");
 const postCountEl = document.getElementById("postCount");
 const photoInput = document.getElementById("photo");
 const previewEl = document.getElementById("preview");
+const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
+const uploadPanel = document.getElementById("panel-upload");
+const feedPanel = document.getElementById("panel-feed");
 
 let posts = loadPosts();
 renderFeed();
+setupTabs();
 
 photoInput.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
@@ -53,6 +58,8 @@ postForm.addEventListener("submit", async (event) => {
   postForm.reset();
   previewEl.hidden = true;
   previewEl.src = "";
+
+  setActiveTab("feed");
 });
 
 feedEl.addEventListener("click", (event) => {
@@ -73,6 +80,31 @@ feedEl.addEventListener("click", (event) => {
   savePosts(posts);
   renderFeed();
 });
+
+function setupTabs() {
+  tabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = button.dataset.target;
+      setActiveTab(target);
+    });
+  });
+
+  const savedTab = localStorage.getItem(TAB_KEY);
+  setActiveTab(savedTab === "feed" ? "feed" : "upload");
+}
+
+function setActiveTab(target) {
+  const isFeed = target === "feed";
+
+  uploadPanel.hidden = isFeed;
+  feedPanel.hidden = !isFeed;
+
+  tabButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.target === target);
+  });
+
+  localStorage.setItem(TAB_KEY, isFeed ? "feed" : "upload");
+}
 
 function renderFeed() {
   postCountEl.textContent = `${posts.length}개`;
