@@ -238,7 +238,7 @@ async function handleSignup(event) {
       setAuthMessage("이미 사용 중인 닉네임입니다.", "error");
       return;
     }
-    setAuthMessage("회원가입에 실패했습니다. 다시 시도해주세요.", "error");
+    setAuthMessage(explainAuthError(error.code, "signup"), "error");
   }
 }
 
@@ -255,8 +255,8 @@ async function handleLogin(event) {
   try {
     await signInWithEmailAndPassword(auth, nicknameToEmail(nickname), password);
     loginForm.reset();
-  } catch {
-    setAuthMessage("닉네임 또는 비밀번호가 올바르지 않습니다.", "error");
+  } catch (error) {
+    setAuthMessage(explainAuthError(error.code, "login"), "error");
   }
 }
 
@@ -577,8 +577,48 @@ function isFirebaseConfigured() {
 }
 
 function nicknameToEmail(nickname) {
-  const encoded = toBase64Url(unescape(encodeURIComponent(nickname)));
-  return `u_${encoded}@meontte.local`;
+  const normalized = String(nickname || "").trim();
+  const encoded = toBase64Url(unescape(encodeURIComponent(normalized))).toLowerCase();
+  const hash = hashNickname(normalized);
+  const localPart = `u_${encoded.slice(0, 28)}_${hash}`;
+  return `${localPart}@meontte.local`;
+}
+
+function hashNickname(value) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function explainAuthError(code, mode) {
+  if (code === "auth/operation-not-allowed") {
+    return "Firebase 콘솔에서 이메일/비밀번호 로그인을 먼저 활성화해주세요.";
+  }
+  if (code === "auth/invalid-api-key") {
+    return "Firebase API 키가 올바르지 않습니다. firebase-config.js를 확인해주세요.";
+  }
+  if (code === "auth/network-request-failed") {
+    return "네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.";
+  }
+  if (code === "auth/too-many-requests") {
+    return "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
+  }
+  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+    return "닉네임 또는 비밀번호가 올바르지 않습니다.";
+  }
+  if (code === "auth/weak-password") {
+    return "비밀번호가 너무 약합니다. 더 강한 비밀번호를 사용해주세요.";
+  }
+  if (code === "auth/invalid-email") {
+    return "닉네임 형식 변환에 실패했습니다. 다른 닉네임으로 시도해주세요.";
+  }
+
+  return mode === "signup"
+    ? `회원가입에 실패했습니다. (${code || "알 수 없는 오류"})`
+    : `로그인에 실패했습니다. (${code || "알 수 없는 오류"})`;
 }
 
 function toBase64Url(value) {
